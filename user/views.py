@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.contrib.auth.models import User
+from .models import User
 from rest_framework import permissions, viewsets
 from .serializers import  UserSerializer
 from django.contrib.auth import authenticate
@@ -23,9 +23,17 @@ class LoginView(TokenObtainPairView):
     def post(self, request, format=None):
         response = super().post(request, format)
         if response.status_code == 200:
-            user = authenticate(username=request.data['username'], password=request.data['password'])
+            user = authenticate(email=request.data['email'], password=request.data['password'])
             refresh = RefreshToken.for_user(user)
             response.data['refresh_token'] = str(refresh)
             # Pass request context to the serializer
             response.data['user'] = UserSerializer(user, context={'request': request}).data
         return response
+
+class UserRegistrationAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = UserSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
