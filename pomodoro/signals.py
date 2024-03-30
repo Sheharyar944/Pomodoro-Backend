@@ -1,7 +1,9 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
+from .serializers import PomodoroSerializer
 from django.dispatch import receiver
 from user.models import User
 from .models import Pomodoro
+from rest_framework.response import Response
 
 @receiver(post_save, sender=User)
 def create_user_pomodoro(sender, instance, created, **kwargs):
@@ -50,4 +52,24 @@ def update_other_pomodoros(sender, instance, created, **kwargs):
                                   ticking_sound_break=instance.ticking_sound_break,
                                   one_min_notify = instance.one_min_notify,
                                   )
+
+
+# @receiver(post_delete, sender=Pomodoro)
+# def update_next_mode(sender, instance, **kwargs):
+#     remaining_modes = Pomodoro.objects.filter(user=instance.user)
+#     if remaining_modes.exists():
+#         sorted_modes = remaining_modes.order_by('id')
+#         next_mode = sorted_modes.first()
+#         next_mode.is_selected = True
+#         next_mode.save()
+#         serializer = PomodoroSerializer(next_mode)
+#         serialized_data = serializer.data
+#         data = {
+#             'message' : "Settings deleted successfully",
+#             'mode': serialized_data
+#         }
+#         return Response(data)
+#     else:
+#         return Response({'message':'No Modes'})
+
         

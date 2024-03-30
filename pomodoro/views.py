@@ -5,7 +5,8 @@ from .models import Pomodoro
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import Http404
-
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.exceptions import NotFound
 # Create your views here.
 class PomodoroSettingsView(APIView):
     def get(self, request, format=None):
@@ -35,17 +36,39 @@ class PomodoroSettingsUpdateView(APIView):
         serializer = PomodoroSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    # def post (self, request, *args, **kwargs):
+    #     user_id = kwargs['user_id']
+    #     settings_name = request.query_params.get('settings_name')
+    #     queryset = Pomodoro.objects.filter(user_id=user_id)
+    #     if settings_name:
+    #         queryset= queryset.get(settings_name=settings_name)
+    #     serializer = PomodoroSerializer(queryset, data=request.data, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
     def post (self, request, *args, **kwargs):
         user_id = kwargs['user_id']
-        settings_name = request.query_params.get('settings_name')
-        queryset = Pomodoro.objects.filter(user_id=user_id)
+        settings_name = request.query_params.get('settings_name') or request.data.get("settings_name")
         if settings_name:
-            queryset= queryset.get(settings_name=settings_name)
-        serializer = PomodoroSerializer(queryset, data=request.data, partial=True)
+            try:
+                queryset = Pomodoro.objects.filter(user_id=user_id)
+                queryset= queryset.get(settings_name=settings_name)
+                serializer = PomodoroSerializer(queryset, data=request.data, partial=True)
+            except Pomodoro.DoesNotExist:
+                serializer = None
+
+            if serializer is not None and serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        serializer = PomodoroSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def patch(self, request, *args, **kwargs):
         data = request.data
@@ -73,9 +96,27 @@ class PomodoroSettingsUpdateView(APIView):
         user_id = kwargs['user_id']
         settings_name = request.query_params.get("settings_name")
         queryset=Pomodoro.objects.filter(user_id=user_id)
-        if settings_name:
+        try:
             instance = queryset.get(settings_name=settings_name)
             instance.delete()
-            return Response({'message': 'instance deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+            remaining_modes = Pomodoro.objects.filter(user=instance.user)
+            if remaining_modes.exists():
+                sorted_modes = remaining_modes.order_by('id')
+                next_mode = sorted_modes.first()
+                next_mode.is_selected = True
+                next_mode.save()
+                serializer = PomodoroSerializer(next_mode)
+                serialized_data = serializer.data
+                data = {
+                'message' : "Mode deleted successfully and heres instance",
+                'mode': serialized_data
+            }
+            else:
+                data={'message' : "Mode deleted successfully yo",}
+
+            return Response(data, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            raise NotFound('Mode does not exist')
+
             
 
