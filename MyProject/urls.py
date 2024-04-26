@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.authtoken.views import obtain_auth_token
-from task.views import UserTasksView
+from task.views import UserTasksView, CreateTaskView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('user/<int:user_id>/tasks/', UserTasksView.as_view(), name='user-tasks'),
+    path('user/<int:user_id>/task/<int:task_id>', CreateTaskView.as_view(), name='delete-task')
     # path('user/<int:user_id>/tasks/', CreateTaskView.as_view(), name='user-tasks'),
     
 

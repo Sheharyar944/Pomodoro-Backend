@@ -12,6 +12,8 @@ from rest_framework import renderers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+
 
 
 # Create your views here.
@@ -32,8 +34,13 @@ class TaskList(APIView):
     """
     List all snippets, or create a new snippet.
     """
-    def get(self, request, format=None):
+    def get(self, request, format=None, **kwargs):
         tasks = Task.objects.all()
+        task_id = request.query_params.get('id')
+        if task_id:
+            instance = tasks.get(id=task_id)
+            serializer = TaskSerializer(instance)
+            return Response(serializer.data)
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
 
@@ -53,15 +60,11 @@ class UserTasksView(generics.ListAPIView):
     serializer_class = TaskSerializer
 
     def get_queryset(self):
-        """
-        This view should return a list of all tasks
-        for the user as determined by the user_id URL parameter.
-        """
         user_id = self.kwargs['user_id']
         return Task.objects.filter(user__id=user_id)
     
     def post(self, request, user_id, format=None):
-        print(request.data)
+    
         task_data = request.data
         # task_data['user_id'] = user_id
         # user_instance = User.objects.get(pk=user_id)
@@ -92,3 +95,15 @@ class CreateTaskView(APIView):
     def perform_create(self, serializer):
         # Set the user field before saving
         serializer.save(user=self.request.user)
+
+    def delete(self, request, user_id, task_id, format=None):
+        task = get_object_or_404(Task, id=task_id, user_id=user_id)
+        task.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    def patch(self, request, user_id, task_id, format=None):
+        task= get_object_or_404(Task, id=task_id, user_id=user_id)
+        serializer = TaskSerializer(task, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
